@@ -35,51 +35,34 @@ CORS allowlist (credentials allowed only for these origins):
 - `https://quasihydra.lalaayenglobalplaza.com`
 - `https://www.quasihydra.lalaayenglobalplaza.com`
 
-Placeholder hostname until deploy (already set in `config.js`):
+Live host (set in the site root `config.js`):
 
-`https://quasi-business-auth.PLACEHOLDER.workers.dev`
+`https://quasi-business-auth.zapbo777.workers.dev`
 
-After deploy, the live host looks like:
+D1 `database_id` in `wrangler.jsonc` is `218f3cc3-589a-4744-b744-913350cc56e3`. That database already exists and the migration has been applied remotely. Do not add `limits.cpu_ms`. Deploy failed on the Free plan when that field was set; the live Worker was deployed without it.
 
-`https://quasi-business-auth.<your-account-subdomain>.workers.dev`
+## Redeploy
 
-## Go-live commands
-
-From this directory, on a machine logged into the Cloudflare account that should own QUASI (not Plaza):
+From this directory, on the Cloudflare account that owns QUASI (not Plaza):
 
 ```bash
 cd worker
 npm install
 npx wrangler login
-npx wrangler d1 create quasi-business-auth
-```
-
-Wrangler prints a `database_id`. Open `wrangler.jsonc` and replace:
-
-`00000000-0000-0000-0000-000000000000`
-
-with that id. Leave `account_id` unset so the Wrangler login picks the account. Do not commit API tokens.
-
-```bash
-npx wrangler d1 migrations apply quasi-business-auth --remote
 npx wrangler deploy
 ```
 
-`wrangler deploy` prints the workers.dev URL. Copy it into the site root `config.js`:
+Leave `account_id` unset. Do not commit API tokens. Do not run `d1 create` again.
 
-```js
-window.QUASI_API = "https://quasi-business-auth.<your-account-subdomain>.workers.dev";
-```
-
-Commit and push `config.js` so GitHub Pages publishes it. Then check:
+Check:
 
 ```bash
-curl -sS "https://quasi-business-auth.<your-account-subdomain>.workers.dev/health"
+curl -sS "https://quasi-business-auth.zapbo777.workers.dev/health"
 ```
 
 Expect `"billing":"off"` and `"service":"quasi-business-auth"`.
 
-Password hashing uses about 15ms or more of CPU. Workers Free stops a request at 10ms, so signup/login need **Workers Paid** (this config sets `limits.cpu_ms` to 30000, which only applies on Paid). If the live Worker returns Cloudflare error 1102, the account is still on the Free CPU cap.
+Password hashing uses PBKDF2 at 100,000 iterations. The Free plan CPU cap is 10ms, and this config does not raise it. If signup or login returns Cloudflare error 1102, the request ran out of CPU. Do not fix that by adding `limits.cpu_ms` on this Free account.
 
 ## Local checks
 
@@ -109,7 +92,7 @@ Open:
 
 The `api` query is accepted only for that localhost port. Production keeps using `window.QUASI_API`.
 
-`wrangler dev` against local D1, after replacing `database_id` (local mode still wants the config field):
+`wrangler dev` against local D1 (`database_id` in `wrangler.jsonc` is the remote database):
 
 ```bash
 npx wrangler d1 migrations apply quasi-business-auth --local
