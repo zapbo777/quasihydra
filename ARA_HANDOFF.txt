@@ -1,0 +1,27 @@
+ARA — QUASI BUSINESS PUBLIC APP HANDOFF — 6 Nov 2026
+
+OWNER INTENT
+- Brand: QUASI (working product title: QUASI Creative Studio).
+- This is intended to be a PUBLIC CUSTOMER-FACING BUSINESS at QUASI itself.
+- Management belongs in the QUASI HYDRA -> BUSINESS section inside private CORE HQ.
+- DO NOT place it under Lala Ayen Global Plaza, reuse the mall codebase, or rebuild either site.
+- The owner requests customer-facing public availability, but the supplied files are NOT production-ready. Verify and report blockers before deployment. No live deploy was performed by Peter.
+
+WHAT IS IN THIS PACKAGE
+- index.html: business landing page, planned pricing ($19/$49/$149) and owner-side self-reported validation tracker.
+- studio.html: offline rule/template-based generator of 20 ad hooks, heuristic scores, 15/30s script, captions, copy/save/export.
+- server.mjs: optional Node server with API integration ONLY if independently approved and securely configured. Default AI off.
+- package.json: basic Node launch config. Node 18+.
+- LOCAL TEST: open index.html or studio.html in a browser. Optional: npm start -> localhost:5187.
+
+BEFORE YOU PUBLISH TO PUBLIC CUSTOMERS
+1. Read current Quasi Hydra/CORE HQ durable handoff; verify active project and exact folder paths and deployment host.
+2. Preserve approved UI and existing sites; prepare an isolated QUASI business service/route and back up before any change.
+3. Test all controls in browser, mobile and desktop; resolve defects.
+4. Create customer accounts, access control, password reset, secure database, privacy notice, terms, abuse/rate limits, logs and backups.
+5. Decide whether to launch the existing template generator only, or add optional connected AI. If AI is added, keep key server-side and require owner's explicit approval for API billing; set cost ceilings.
+6. Implement secure subscription checkout, webhook verification, upgrades/cancellation and invoices only after owner approves payment provider and real prices.
+7. Keep paid tiers and collect-payment controls DISABLED until ready, audited and owner-approved. Do not invent subscribers/revenue.
+8. Provide owner with staged preview, tests, launch checklist and exact public URL; do not deploy unfinished paid features or modify Global Plaza.
+
+CURRENT REALITY: no active paying customers, no confirmed income, no hosted public deployment, no live AI API, no working subscription billing or sign-in in this archive. Proposed plan prices are not receipts.

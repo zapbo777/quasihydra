@@ -1,0 +1,11 @@
+QUASI PUBLIC BUSINESS RELEASE CHECKLIST
+[ ] Identify Quasi public domain, hosting and private Quasi Hydra administration location
+[ ] Confirm backup and active source tree before modifications
+[ ] No Global Plaza or live CORE HQ site rewritten
+[ ] Test hook creation, scoring, scripts, copy/save/export on mobile/desktop
+[ ] Customer login and account protections completed
+[ ] Privacy, terms, data safety, rate limiting, monitoring completed
+[ ] If connected AI is approved: server-side keys, billing limits, abuse prevention and tests
+[ ] If paid subscriptions are approved: authorized payment integration, test transactions, cancellation/refunds
+[ ] User approves staged view and public launch
+[ ] Verify live public route works and actual payments are recorded accurately
