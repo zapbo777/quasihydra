@@ -1,11 +1,12 @@
+<!-- HYDRA Hook Studio under QUASI Business. Offline rule-based prototype. Registration, checkout, and billing are not activated. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="theme-color" content="#101020" />
-<meta name="description" content="QUASI Creative Studio: create, score, save and export short-form advertising hooks and scripts." />
-<title>QUASI — Creative Studio</title>
+<meta name="description" content="HYDRA Hook Studio under QUASI Business: a free offline prototype to draft, score, save and export short-form ad hooks and scripts. Not for sale." />
+<title>QUASI · HYDRA Hook Studio</title>
 <style>
 :root{color-scheme:dark;--bg:#0d0d19;--panel:#171629;--panel2:#1e1c33;--edge:#37324a;--text:#f8f5ff;--muted:#aaa7bd;--purple:#b49cff;--pink:#ff97ba;--gold:#ffdb99;--good:#86e5c5;--bad:#ffa5a5;--r:19px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 8% 0%,#332046 0,transparent 32%),radial-gradient(circle at 100% 2%,#182444 0,transparent 26%),var(--bg);font:15px/1.47 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);min-height:100vh}
@@ -19,10 +20,11 @@ a{color:#d9cbff}.shell{max-width:1460px;margin:auto;padding:0 28px 72px}.top{dis
 <body>
 <div class="shell">
 <header class="top">
-  <a href="./index.html" class="mini" style="text-decoration:none">⌂ QUASI Business</a><div class="brand"><div class="emblem" aria-hidden="true">✦</div><div><small>QUASI · BUSINESS</small><h1>Creative Studio</h1></div></div>
+  <a href="index.html" class="mini" style="text-decoration:none">⌂ QUASI</a>
+  <div class="brand"><div class="emblem" aria-hidden="true">✦</div><div><small>QUASI · BUSINESS</small><h1>HYDRA Hook Studio</h1></div></div>
   <div class="tagline"><span class="dot"></span> Works offline · No charge</div>
 </header>
-<section class="hero"><div><div class="eyebrow">Idea → Hooks → Short-form video script</div><h2>Make the first <em>three seconds</em> count.</h2><p>Create ad hooks, evaluate writing patterns, draft Reels scripts, save favorites, and export copy. QUASI is a separate business product and is not part of Global Plaza.</p></div><button class="secondary" id="demoBtn" type="button">✦ Try a ready-made example</button></section>
+<section class="hero"><div><div class="eyebrow">Idea → Hooks → Short-form video script</div><h2>Make the first <em>three seconds</em> count.</h2><p>A real, working proof-of-concept for the kind of app shown in that Reel: write hooks, evaluate them, generate short-form ad scripts, save your favorites, and export copy. Built separately from your live Global Plaza.</p></div><button class="secondary" id="demoBtn" type="button">✦ Try a ready-made example</button></section>
 <div class="layout">
   <aside class="panel form" aria-label="Ad brief form">
     <div class="panelHead"><h3>01 · Your creative brief</h3><span class="num">EDITABLE</span></div>
@@ -40,14 +42,14 @@ a{color:#d9cbff}.shell{max-width:1460px;margin:auto;padding:0 28px 72px}.top{dis
       <div class="field"><label for="site">Website (optional)</label><input id="site" maxlength="200" value="https://lalaayenglobalplaza.com" /></div>
       <div class="field"><label for="source">Your existing hook, idea, or script (optional)</label><textarea id="source" maxlength="600" placeholder="Paste a hook from a video. You can score it below."></textarea></div>
     </div>
-    <div class="actionBar"><button id="generate" class="primary" type="button">✦ Generate 20 hooks</button><button id="realAi" class="secondary" type="button">✧ Generate 20 with real AI (only if enabled)</button><p id="realAiStatus" class="help">Real AI is OFF by default. The built-in creator works without payment.</p><button id="reset" class="ghost" type="button">Reset example</button><div class="micro">Local, in-browser idea generator. No account, payment, or API key required for built-in generator.</div></div>
+    <div class="actionBar"><button id="generate" class="primary" type="button">✦ Generate 20 hooks</button><button id="reset" class="ghost" type="button">Reset example</button><div class="micro">Local, in-browser idea generator. No account, payment, or API key.</div></div>
   </aside>
   <main class="panel work" aria-label="Creative studio output">
     <nav class="tabs" role="tablist" aria-label="Studio views"><button class="tab active" role="tab" aria-selected="true" data-tab="hooks" id="tab-hooks">Hooks</button><button class="tab" role="tab" aria-selected="false" data-tab="script" id="tab-script">Video script</button><button class="tab" role="tab" aria-selected="false" data-tab="saved" id="tab-saved">Saved <span id="savedCount">0</span></button><button class="tab" role="tab" aria-selected="false" data-tab="reality" id="tab-reality">How it works</button></nav>
     <div class="workspace" id="workspace" role="tabpanel" aria-labelledby="tab-hooks"></div>
   </main>
 </div>
-<footer class="foot"><p><strong>Transparency:</strong> The current creator uses local writing templates, not a connected AI model. Scores are writing heuristics—not guaranteed virality, sales, or earnings. All drafts should be reviewed before posting. Everything stays in your browser unless you copy or export it.</p><p>© <span id="year">2026</span> QUASI by Lala Ayen · Memberships not active</p></footer>
+<footer class="foot"><p><strong>Transparency:</strong> This is an original, rule-based offline prototype, not a connection to ChatGPT's model or the app from the viral video. Scores are writing heuristics—not guaranteed virality, sales, or earnings. All drafts should be reviewed before posting. Everything stays in your browser unless you copy or export it.</p><p>© <span id="year">2026</span> Lala Ayen · HYDRA Hook Studio under QUASI Business · Not for sale</p></footer>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -142,7 +144,7 @@ function render(){const el=$('workspace');el.innerHTML=state.tab==='hooks'?hooks
 function saveHook(i){const h=state.hooks[i];if(!h)return;const ix=state.saved.findIndex(x=>x.text===h.text);if(ix>=0){state.saved.splice(ix,1);showToast('Removed from favorites.')}else{state.saved.unshift({text:h.text,category:h.category,brand:state.brief.brand,date:new Date().toLocaleDateString()});showToast('Saved on this device.')}writeSaved();updateTab();render()}
 async function copyText(s){try{await navigator.clipboard.writeText(s);showToast('Copied!')}catch{const el=document.createElement('textarea');el.value=s;document.body.append(el);el.select();try{document.execCommand('copy');showToast('Copied!')}catch{showToast('Copy not available here. Try downloading.')}el.remove()}}
 function download(text,name){const blob=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('File exported.');}
-function adKit(){const d=scriptData(selectedHook(),state.brief);return `QUASI CREATIVE STUDIO — AD KIT\n${'='.repeat(40)}\nBrand: ${state.brief.brand}\nOffer: ${state.brief.offer}\nPlatform: ${state.brief.platform}\nLength: ${state.brief.length} seconds\n\nOPENING HOOK\n${d.hook}\n\nVOICEOVER\n${d.voice}\n\nSHOT LIST\n${d.shots}\n\nCAPTION\n${d.caption}\n\nReminder: Verify all claims before publishing. Scores are heuristic.\n`}
+function adKit(){const d=scriptData(selectedHook(),state.brief);return `HYDRA HOOK STUDIO — AD KIT\n${'='.repeat(40)}\nBrand: ${state.brief.brand}\nOffer: ${state.brief.offer}\nPlatform: ${state.brief.platform}\nLength: ${state.brief.length} seconds\n\nOPENING HOOK\n${d.hook}\n\nVOICEOVER\n${d.voice}\n\nSHOT LIST\n${d.shots}\n\nCAPTION\n${d.caption}\n\nReminder: Verify all claims before publishing. Scores are heuristic.\n`}
 function inspect(){const txt=$('inspectText')?.value.trim();if(!txt){showToast('Paste a hook to review it.');return}state.evaluation=scoreHook(txt,state.brief||brief());const box=$('evaluation');box.innerHTML=evaluationHTML(state.evaluation);box.style.display='block'}
 $('generate').addEventListener('click',generateHooks);$('reset').addEventListener('click',()=>applyPreset('song'));
 $('songPreset').addEventListener('click',()=>applyPreset('song'));
@@ -152,33 +154,6 @@ document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>
 $('workspace').addEventListener('click',evt=>{const btn=evt.target.closest('button[data-action]');if(!btn)return;const i=Number(btn.dataset.id);const act=btn.dataset.action;switch(act){case 'select':state.selected=i;setTab('script');break;case 'copy':copyText(state.hooks[i]?.text||'');break;case 'save':saveHook(i);break;case 'evaluate':inspect();break;case 'copy-script':copyText(adKit());break;case 'download-script':download(adKit(),'Lala_Ayen_Ad_Kit.txt');break;case 'back-hooks':setTab('hooks');break;case 'copy-saved':copyText(state.saved[i]?.text||'');break;case 'remove-saved':state.saved.splice(i,1);writeSaved();updateTab();render();showToast('Removed.');break;case 'clear-saved':if(confirm('Clear all saved ideas on this device?')){state.saved=[];writeSaved();updateTab();render()}break;case 'export-saved':download(`SAVED HOOKS — LALA AYEN\n\n`+state.saved.map((x,i)=>`${i+1}. [${x.category}] ${x.text} (${x.brand})`).join('\n\n'),'Lala_Ayen_Saved_Hooks.txt');break;}});
 $('year').textContent=new Date().getFullYear();
 generateHooks();
-</script>
-
-<script>
-(()=>{
- const aiBtn=document.getElementById('realAi');
- const status=document.getElementById('realAiStatus');
- async function health(){
-   try{const r=await fetch('/api/health',{signal:AbortSignal.timeout(3000)});const j=await r.json();
-     status.textContent=j.aiConfigured?'Real AI is configured on this server. Requests may incur API usage costs.':'Real AI is not configured. Free offline demo is available.';
-     aiBtn.disabled=!j.aiConfigured;
-   }catch{status.textContent='Offline file mode: free local generator available. For real AI, the owner must configure a server-side API key.';aiBtn.disabled=true;}
- }
- aiBtn.addEventListener('click',async()=>{
-  if(!aiBtn||aiBtn.disabled)return;
-  const b=brief();if(!b.offer){showToast('Enter the product first.');return;}
-  const original=aiBtn.textContent;aiBtn.textContent='Generating with real AI…';aiBtn.disabled=true;
-  try{
-    const r=await fetch('/api/hooks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-    const j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');
-    if(!Array.isArray(j.hooks)||j.hooks.length<1)throw new Error('No hooks returned');
-    state.brief=b;state.hooks=j.hooks.map((h,i)=>({id:'ai:'+i,category:String(h.category||'AI Hook'),text:String(h.text||''),review:scoreHook(String(h.text||''),b)}));
-    state.selected=0;state.evaluation=null;setTab('hooks');showToast('Real AI hooks created. Scores are still rough heuristics, not predicted sales.');
-  }catch(e){status.textContent='AI request failed: '+e.message+'. Free local generator still works.';showToast('AI unavailable; no purchase was made.');}
-  finally{aiBtn.textContent=original;aiBtn.disabled=false;}
- });
- health();
-})();
 </script>
 </body>
 </html>
