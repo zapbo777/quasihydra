@@ -19,12 +19,8 @@
       "head_sampling_rate": 0.01
     }
   },
-  // Password hashing needs more than the Workers Free 10ms CPU budget.
-  // This value applies on Workers Paid (default there is 30000). Free accounts
-  // cannot raise the 10ms cap; see worker/README.md.
-  "limits": {
-    "cpu_ms": 30000
-  },
+  // Do not set limits.cpu_ms. This Worker is on the Free plan; deploy failed
+  // when cpu_ms was present. The live Worker does not use that field.
   "vars": {
     "BILLING_MODE": "off",
     "ALLOWED_ORIGINS": "https://quasihydra.lalaayenglobalplaza.com,https://www.quasihydra.lalaayenglobalplaza.com"
@@ -33,8 +29,7 @@
     {
       "binding": "DB",
       "database_name": "quasi-business-auth",
-      // Replace this placeholder after `npx wrangler d1 create quasi-business-auth`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "218f3cc3-589a-4744-b744-913350cc56e3",
       "migrations_dir": "migrations"
     }
   ]

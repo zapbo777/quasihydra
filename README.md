@@ -12,35 +12,24 @@ Lala Ayen Global Plaza is not part of this repo. Do not point this Worker at Pla
 
 **Billing is off.** Basic, Pro, and Business render as **not activated**. There is no checkout, charge, or subscription endpoint. `/billing/*` on the Worker returns 503.
 
-Cloud save uses the Worker when `config.js` has a real workers.dev host. Until then the studio keeps favorites in `localStorage`.
+Cloud save calls the live Worker. Favorites stay in `localStorage` when the browser is offline.
 
-## Deploy the API (Ara)
+## Live API
 
-The Worker is not deployed from this repository automatically. Placeholder host in `config.js`:
+`config.js` sets `window.QUASI_API` to `https://quasi-business-auth.zapbo777.workers.dev`.
 
-`https://quasi-business-auth.PLACEHOLDER.workers.dev`
+D1 database `quasi-business-auth` id `218f3cc3-589a-4744-b744-913350cc56e3` is already created and migrated. Do not add `limits.cpu_ms` to `worker/wrangler.jsonc`. A deploy with that field failed on the Free plan; the live Worker does not include it.
 
-From `worker/`:
+To redeploy code only:
 
 ```bash
 cd worker
 npm install
 npx wrangler login
-npx wrangler d1 create quasi-business-auth
-```
-
-Paste the printed `database_id` over `00000000-0000-0000-0000-000000000000` in `worker/wrangler.jsonc`.
-
-```bash
-npx wrangler d1 migrations apply quasi-business-auth --remote
 npx wrangler deploy
 ```
 
-Put the printed `https://quasi-business-auth.<subdomain>.workers.dev` URL into `config.js` as `window.QUASI_API`, then commit it so Pages updates.
-
-Full notes, CORS, cookie name, and the local test URL are in [worker/README.md](worker/README.md).
-
-Signup and login need Workers Paid. The Free plan’s 10ms CPU limit is too small for PBKDF2 (100,000 iterations).
+Full notes are in [worker/README.md](worker/README.md).
 
 ## Local site
 
