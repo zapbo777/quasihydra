@@ -38,8 +38,10 @@ http.createServer(async(req,res)=>{
    try{return reply(res,200,await liveHooks(data))}catch(e){return reply(res,502,{error:e.message})}
   }
   if(req.method!=='GET')return reply(res,405,{error:'Method not allowed'});
-  const paths={'/':'index.html','/index.html':'index.html','/studio.html':'studio.html'};
+  const paths={'/':'index.html','/index.html':'index.html','/studio.html':'studio.html','/config.js':'config.js','/auth.js':'auth.js'};
   const file=paths[url.pathname];if(!file)return reply(res,404,{error:'Not found'});
-  const body=await readFile(path.join(here,file));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self' 'unsafe-inline' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});res.end(body);
+  const body=await readFile(path.join(here,file));
+  const type=file.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8';
+  res.writeHead(200,{'Content-Type':type,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self' 'unsafe-inline' data:; connect-src 'self' https://*.workers.dev http://127.0.0.1:8787 http://localhost:8787; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});res.end(body);
  }catch(e){reply(res,500,{error:'Server error'})}
 }).listen(port,host,()=>console.log(`QUASI local preparation on http://${host}:${port} (AI ${configured?'optional enabled':'disabled'})`));
