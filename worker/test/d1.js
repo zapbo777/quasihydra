@@ -1,10 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 export function createTestDb() {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
-  db.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+  const dir = new URL("../migrations/", import.meta.url);
+  for (const name of readdirSync(dir).filter((file) => file.endsWith(".sql")).sort()) {
+    db.exec(readFileSync(new URL(name, dir), "utf8"));
+  }
   return wrap(db);
 }
 

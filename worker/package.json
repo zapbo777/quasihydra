@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "QUASI business registration, sessions, and per-user project storage. Billing is off.",
+  "description": "QUASI business registration, sessions, and per-user project storage. Membership billing stays off until BILLING_MODE is sandbox or live.",
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "local": "node dev-server.mjs",

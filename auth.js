@@ -9,6 +9,9 @@
   let busy = false;
   let message = "";
   let messageTone = "info";
+  let billingOffer = null;
+  let squareTier = "";
+  let squareCardField = null;
   const listeners = new Set();
   const mounts = [];
 
@@ -47,7 +50,9 @@
       ".qa-plans{display:flex;gap:8px;flex-wrap:wrap}",
       ".qa-pill{border:1px solid #876c74;border-radius:30px;padding:4px 9px;font-size:12px;color:#ffaccb}",
       ".qa-email{font-weight:800;overflow-wrap:anywhere}",
-      ".qa-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}",
+      ".qa-actions,.qa-billing-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}",
+      ".qa-billing{display:grid;gap:10px}",
+      ".qa-square-card{min-height:88px;background:#100f1d;border:1px solid #71668f;border-radius:10px;padding:10px}",
       ".qa a{color:#d9cbff}",
     ].join("");
     document.head.appendChild(style);
@@ -68,6 +73,7 @@
   function emit() {
     for (const listener of listeners) listener(user);
     for (const mount of mounts) paint(mount);
+    paintMemberships();
   }
 
   async function request(path, { method = "GET", body } = {}) {
@@ -161,11 +167,17 @@
     const email = el("span", "qa-email");
     who.append(email);
     const plans = el("div", "qa-plans");
-    for (const name of PLANS) {
-      const pill = el("span", "qa-pill");
-      pill.textContent = name + " · not activated";
-      plans.append(pill);
-    }
+    const billingBox = el("div", "qa-billing");
+    const billingStatus = el("p", "qa-msg info");
+    const billingActions = el("div", "qa-billing-actions");
+    const squareCard = el("div", "qa-square-card");
+    const squareConfirm = el("button", "qa-btn primary");
+    squareConfirm.type = "button";
+    squareConfirm.textContent = "Confirm Square card";
+    squareCard.hidden = true;
+    squareConfirm.hidden = true;
+    billingBox.hidden = true;
+    billingBox.append(billingStatus, billingActions, squareCard, squareConfirm);
     const signedMsg = el("p", "qa-msg info");
     signedMsg.textContent = options.context === "studio"
       ? "Favorites and named briefs save to your account. Plans stay not activated."
@@ -181,7 +193,8 @@
     signOut.type = "button";
     signOut.textContent = "Sign out";
     actions.append(signOut);
-    signedIn.append(who, plans, signedMsg, actions);
+    signedIn.append(who, plans, billingBox, signedMsg, actions);
+    squareConfirm.addEventListener("click", () => confirmSquare());
     box.append(signedOut, signedIn);
     root.append(box);
 
@@ -190,7 +203,7 @@
     signOut.addEventListener("click", () => { logout(); });
     form.addEventListener("submit", (event) => submitForm(event, form));
 
-    const record = { root, options, signedOut, signedIn, loginBtn, signupBtn, confirmWrap, passwordField, submit, msg, email };
+    const record = { root, options, signedOut, signedIn, loginBtn, signupBtn, confirmWrap, passwordField, submit, msg, email, plans, billingBox, billingStatus, billingActions, squareCard, squareConfirm, signedMsg };
     mounts.push(record);
     paint(record);
   }
@@ -224,10 +237,262 @@
       ? "Sign in to save HYDRA projects to your account."
       : "Sign-in is on this page. Cloud save turns on after the API hostname in config.js replaces PLACEHOLDER.");
     record.email.textContent = user ? user.email : "";
+    record.signedMsg.textContent = user && user.access && user.access.active
+      ? membershipNotice(user)
+      : (record.options.context === "studio"
+        ? "Favorites and named briefs save to your account. Plans stay not activated."
+        : "Open HYDRA Hook Studio to save hooks to this account. Plans stay not activated.");
+    paintPlans(record);
+    paintBilling(record);
+  }
+
+  function planPhrase(status) {
+    if (status === "active") return "active";
+    if (status === "included") return "included";
+    if (status === "cancel_scheduled") return "cancels at period end";
+    return "not activated";
+  }
+
+  function paintPlans(record) {
+    record.plans.replaceChildren();
+    const source = user && Array.isArray(user.plans) && user.plans.length
+      ? user.plans
+      : PLANS.map((name) => ({ name, status: "not_activated" }));
+    for (const plan of source) {
+      const pill = el("span", "qa-pill");
+      pill.textContent = plan.name + " · " + planPhrase(plan.status);
+      record.plans.append(pill);
+    }
+  }
+
+  function paintBilling(record) {
+    if (!billingOffer || !user) {
+      record.billingBox.hidden = true;
+      return;
+    }
+    record.billingBox.hidden = false;
+    const access = user.access || {};
+    record.billingStatus.textContent = access.active
+      ? membershipNotice(user)
+      : (billingOffer.billing === "live"
+        ? "Live billing is on. Subscribing charges the monthly price until you cancel."
+        : "Sandbox billing is on. Square and PayPal stay in sandbox. This is not a live sale.");
+    record.billingActions.replaceChildren();
+    if (access.active) {
+      const cancel = el("button", "qa-btn");
+      cancel.type = "button";
+      cancel.textContent = access.cancelAtPeriodEnd ? "Cancellation scheduled" : "Cancel membership";
+      cancel.disabled = busy || Boolean(access.cancelAtPeriodEnd);
+      cancel.addEventListener("click", () => cancelMembership());
+      record.billingActions.append(cancel);
+      record.squareCard.hidden = true;
+      record.squareConfirm.hidden = true;
+      return;
+    }
+    for (const plan of billingOffer.plans) {
+      for (const provider of billingOffer.providers) {
+        const button = el("button", "qa-btn");
+        button.type = "button";
+        button.disabled = busy;
+        button.textContent = plan.name + " " + plan.price + " · " + (provider === "square" ? "Square" : "PayPal");
+        button.addEventListener("click", () => startSubscribe(plan.id, provider, record));
+        record.billingActions.append(button);
+      }
+    }
+  }
+
+  function paintMemberships() {
+    const sale = document.getElementById("membershipSale");
+    const note = document.getElementById("membershipNote");
+    const feature = document.getElementById("billingFeatureState");
+    if (!sale || !note || !billingOffer) return;
+    sale.textContent = billingOffer.billing === "live" ? "LIVE BILLING" : "SANDBOX BILLING";
+    note.textContent = billingOffer.billing === "live"
+      ? "Live billing is on. Sign in above to subscribe or cancel. Prices stay $19, $49, and $149 per month."
+      : "Sandbox billing is on. Sign in above to subscribe or cancel. Prices stay $19, $49, and $149 per month. This is not a live sale.";
+    if (feature) feature.textContent = "video rendering and public posting";
+    for (const article of document.querySelectorAll("#membershipBands [data-tier]")) {
+      const blurb = article.querySelector("p");
+      const tier = article.getAttribute("data-tier");
+      const plan = billingOffer.plans.find((item) => item.id === tier);
+      if (blurb && plan) blurb.textContent = plan.name + " is " + plan.price + ". Subscribe from your account above.";
+    }
+  }
+
+  function membershipNotice(account) {
+    const access = account && account.access;
+    if (!access || !access.active) return "Signed in. Favorites sync to your account. Plans are not activated, and this does not unlock a paid tier.";
+    const names = { basic: "Basic", pro: "Pro", business: "Business" };
+    const included = (access.entitlements || []).filter((id) => id !== access.tier).map((id) => names[id]).filter(Boolean);
+    const label = account.planLabel || names[access.tier] || "Membership";
+    return included.length
+      ? "Signed in. " + label + " membership is active and includes " + included.join(" and ") + "."
+      : "Signed in. " + label + " membership is active.";
   }
 
   function paintAll() {
     for (const mount of mounts) paint(mount);
+    paintMemberships();
+  }
+
+  async function refreshBilling() {
+    billingOffer = null;
+    if (!configured()) return;
+    try {
+      const health = await request("/health");
+      if (health.billing !== "sandbox" && health.billing !== "live") return;
+      const offer = await request("/billing/plans");
+      const prices = { basic: [1900, "$19/mo"], pro: [4900, "$49/mo"], business: [14900, "$149/mo"] };
+      const plans = Array.isArray(offer.plans) ? offer.plans : [];
+      const pricesMatch = Object.entries(prices).every(([id, expected]) => {
+        const plan = plans.find((item) => item.id === id);
+        return plan && plan.amountCents === expected[0] && plan.price === expected[1] && plan.currency === "USD" && plan.interval === "month";
+      });
+      const providers = Array.isArray(offer.providers) ? offer.providers.filter((provider) => provider === "square" || provider === "paypal") : [];
+      if (!pricesMatch || !providers.length || offer.billing !== health.billing) return;
+      billingOffer = { billing: health.billing, plans, providers, square: offer.square || null };
+    } catch {
+      billingOffer = null;
+    }
+  }
+
+  function paypalApprovalAllowed(value) {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.toLowerCase();
+      const allowed = billingOffer && billingOffer.billing === "live"
+        ? ["www.paypal.com", "paypal.com"]
+        : ["www.sandbox.paypal.com", "sandbox.paypal.com"];
+      return url.protocol === "https:" && allowed.includes(host);
+    } catch {
+      return false;
+    }
+  }
+
+  async function startSubscribe(tier, provider, record) {
+    if (busy) return;
+    if (provider === "paypal") {
+      busy = true;
+      setMessage("Opening PayPal. Nothing is charged until you approve it there.", "info");
+      try {
+        const result = await request("/billing/subscribe", { method: "POST", body: { tier, provider } });
+        if (!paypalApprovalAllowed(result.approvalUrl)) throw new Error("PayPal did not return an approval link on the expected host. Nothing was charged.");
+        location.assign(result.approvalUrl);
+      } catch (error) {
+        busy = false;
+        setMessage(error.message || "Could not start the membership. Nothing was charged.", "bad");
+      }
+      return;
+    }
+    squareTier = tier;
+    record.squareCard.hidden = false;
+    record.squareConfirm.hidden = false;
+    record.squareConfirm.disabled = true;
+    setMessage("Loading the Square card form. QUASI does not see the card number.", "info");
+    try {
+      await mountSquareCard(record);
+      record.squareConfirm.disabled = false;
+      setMessage("Enter the card in the Square form, then confirm. Nothing is charged until Square accepts it.", "info");
+    } catch (error) {
+      record.squareConfirm.hidden = true;
+      setMessage(error.message || "The Square card form could not be loaded. Nothing was charged.", "bad");
+    }
+  }
+
+  async function mountSquareCard(record) {
+    const square = billingOffer && billingOffer.square;
+    const applicationId = square && square.applicationId;
+    const locationId = square && square.locationId;
+    if (!/^(sandbox-sq0idb-[A-Za-z0-9_-]{8,60}|sq0idp-[A-Za-z0-9_-]{8,60})$/.test(applicationId || "")) throw new Error("Square is not configured. Nothing was charged.");
+    if (!/^[A-Za-z0-9]{4,40}$/.test(locationId || "")) throw new Error("Square is not configured. Nothing was charged.");
+    const src = billingOffer.billing === "live" ? "https://web.squarecdn.com/v1/square.js" : "https://sandbox.web.squarecdn.com/v1/square.js";
+    await loadScript(src);
+    if (!window.Square || typeof window.Square.payments !== "function") throw new Error("The Square card form could not be loaded. Nothing was charged.");
+    if (squareCardField && typeof squareCardField.destroy === "function") {
+      try { await squareCardField.destroy(); } catch { /* replace the form */ }
+    }
+    const payments = window.Square.payments(applicationId, locationId);
+    squareCardField = await payments.card();
+    record.squareCard.replaceChildren();
+    await squareCardField.attach(record.squareCard);
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (window.Square) {
+        resolve();
+        return;
+      }
+      let script = document.querySelector('script[src="' + src + '"]');
+      if (!script) {
+        script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        document.head.appendChild(script);
+      }
+      script.addEventListener("load", () => resolve(), { once: true });
+      script.addEventListener("error", () => reject(new Error("The Square card form could not be loaded. Nothing was charged.")), { once: true });
+    });
+  }
+
+  async function confirmSquare() {
+    if (busy || !squareCardField || !squareTier) return;
+    busy = true;
+    paintAll();
+    setMessage("Confirming the Square membership…", "info");
+    try {
+      const result = await squareCardField.tokenize();
+      if (!result || result.status !== "OK" || typeof result.token !== "string") throw new Error("The card form could not be confirmed. Nothing was charged.");
+      await request("/billing/subscribe", { method: "POST", body: { tier: squareTier, provider: "square", sourceId: result.token } });
+      const me = await request("/auth/me");
+      user = me.user || user;
+      squareTier = "";
+      setMessage(user.access && user.access.active ? membershipNotice(user) : "Square has not activated this membership yet.", user.access && user.access.active ? "good" : "info");
+    } catch (error) {
+      setMessage(error.message || "Could not start the Square membership. Nothing was charged.", "bad");
+    } finally {
+      busy = false;
+      paintAll();
+    }
+  }
+
+  async function cancelMembership() {
+    if (busy) return;
+    if (!window.confirm("Cancel this membership?")) return;
+    busy = true;
+    paintAll();
+    try {
+      await request("/billing/cancel", { method: "POST", body: {} });
+      const me = await request("/auth/me");
+      user = me.user || user;
+      setMessage(user.access && user.access.active ? "Cancellation is scheduled. Access stays until the period ends." : "Membership canceled.", "good");
+    } catch (error) {
+      setMessage(error.message || "Could not cancel the membership.", "bad");
+    } finally {
+      busy = false;
+      paintAll();
+    }
+  }
+
+  async function maybeConfirmPaypal() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("billing") !== "paypal-return" || !user) return;
+    const subscriptionId = params.get("subscription_id") || "";
+    if (!/^I-[A-Z0-9]{4,40}$/.test(subscriptionId)) return;
+    try {
+      await request("/billing/confirm", { method: "POST", body: { provider: "paypal", subscriptionId } });
+      const me = await request("/auth/me");
+      user = me.user || user;
+      setMessage(user.access && user.access.active ? "PayPal membership is active." : "PayPal has not activated this membership yet.", user.access && user.access.active ? "good" : "info");
+    } catch (error) {
+      setMessage(error.message || "Could not confirm the PayPal membership.", "bad");
+    }
+    params.delete("billing");
+    params.delete("subscription_id");
+    params.delete("ba_token");
+    params.delete("token");
+    const next = params.toString();
+    history.replaceState({}, "", location.pathname + (next ? "?" + next : "") + location.hash);
   }
 
   async function submitForm(event, form) {
@@ -246,7 +511,9 @@
       const path = mode === "signup" ? "/auth/signup" : "/auth/login";
       const result = await request(path, { method: "POST", body: { email, password } });
       user = result.user;
-      setMessage(mode === "signup" ? "Account created. Plans are not activated." : "Signed in. Plans are not activated.", "good");
+      setMessage(user && user.access && user.access.active
+        ? membershipNotice(user)
+        : (mode === "signup" ? "Account created. Plans are not activated." : "Signed in. Plans are not activated."), "good");
       form.reset();
       emit();
     } catch (error) {
@@ -269,21 +536,19 @@
   }
 
   async function start() {
-    if (!configured()) {
-      emit();
-      return;
-    }
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      emit();
-      return;
-    }
-    try {
-      const result = await request("/auth/me");
-      user = result.user || null;
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      user = null;
+    await refreshBilling();
+    if (configured()) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (token) {
+        try {
+          const result = await request("/auth/me");
+          user = result.user || null;
+        } catch {
+          localStorage.removeItem(TOKEN_KEY);
+          user = null;
+        }
+      }
+      await maybeConfirmPaypal();
     }
     emit();
   }
@@ -308,6 +573,7 @@
       listener(user);
     },
     currentUser() { return user; },
+    membershipNotice,
     async getLibrary() {
       const data = await request("/library");
       return data.project || null;

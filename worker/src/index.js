@@ -1,5 +1,6 @@
 // QUASI business auth + project storage.
-// Billing is intentionally unimplemented. BILLING_MODE=off (the default) returns 503.
+// Billing stays off unless BILLING_MODE is sandbox or live. See billing.js.
+import { accountBilling, billingMode, handleBilling } from "./billing.js";
 
 const SIGNUP_LIMIT = 5;
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
@@ -34,6 +35,7 @@ export async function handle(request, env) {
     return withCors(request, env, response);
   } catch (error) {
     const status = Number(error && error.status) || 500;
+    const exposed = Boolean(error && Number.isInteger(error.status) && error.status >= 400 && error.status < 600);
     if (status >= 500) {
       console.error(JSON.stringify({
         service: "quasi-business-auth",
@@ -42,26 +44,30 @@ export async function handle(request, env) {
         error: error instanceof Error ? error.message : String(error),
       }));
     }
-    const message = status >= 500 ? "Server error" : (error instanceof Error ? error.message : "Request failed");
+    const message = exposed && error instanceof Error ? error.message : "Server error";
     return withCors(request, env, jsonBody(status, { error: message }));
   }
 }
 
 async function route(request, env, path) {
   if (path === "/billing" || path.startsWith("/billing/")) {
-    const mode = String(env.BILLING_MODE || "off");
-    console.log(JSON.stringify({ service: "quasi-business-auth", message: "billing blocked", mode }));
-    return jsonBody(503, {
-      error: "Billing is not activated.",
-      billing: "off",
-    });
+    const mode = billingMode(env);
+    if (mode === "off") {
+      console.log(JSON.stringify({ service: "quasi-business-auth", message: "billing blocked", mode: "off" }));
+      return jsonBody(503, {
+        error: "Billing is not activated.",
+        billing: "off",
+      });
+    }
+    if (!env || !env.DB) fail(500, "Database is not configured.");
+    return handleBilling(request, env, path, { currentUser, requireClientHeader });
   }
 
   if (request.method === "GET" && (path === "/" || path === "/health")) {
     return jsonBody(200, {
       ok: true,
       service: "quasi-business-auth",
-      billing: "off",
+      billing: billingMode(env),
       auth: ["signup", "login", "logout", "me"],
       storage: ["library", "projects"],
     });
@@ -302,8 +308,22 @@ async function createSession(env, userId) {
   return token;
 }
 
-function authResponse(user, token) {
-  return jsonBody(200, { user: publicUser(user), token }, { "Set-Cookie": sessionCookie(token) });
+async function presentUser(env, row) {
+  const billing = await accountBilling(env, row.id);
+  if (!billing) return publicUser(row);
+  return {
+    id: row.id,
+    email: row.email,
+    planLabel: billing.planLabel,
+    planStatus: billing.planStatus,
+    plans: billing.plans,
+    access: billing.access,
+    createdAt: row.created_at,
+  };
+}
+
+async function authResponse(env, user, token) {
+  return jsonBody(200, { user: await presentUser(env, user), token }, { "Set-Cookie": sessionCookie(token) });
 }
 
 async function signup(request, env) {
@@ -337,7 +357,7 @@ async function signup(request, env) {
   await recordAttempt(env, { email, ip, action: "signup", success: true });
   const token = await createSession(env, user.id);
   console.log(JSON.stringify({ service: "quasi-business-auth", message: "signup", userId: user.id }));
-  return authResponse(user, token);
+  return authResponse(env, user, token);
 }
 
 async function login(request, env) {
@@ -362,7 +382,7 @@ async function login(request, env) {
   await recordAttempt(env, { email, ip, action: "login", success: true });
   const token = await createSession(env, user.id);
   console.log(JSON.stringify({ service: "quasi-business-auth", message: "login", userId: user.id }));
-  return authResponse(user, token);
+  return authResponse(env, user, token);
 }
 
 async function currentUser(request, env) {
@@ -382,7 +402,7 @@ async function currentUser(request, env) {
 
 async function me(request, env) {
   const { user } = await currentUser(request, env);
-  return jsonBody(200, { user: publicUser(user) });
+  return jsonBody(200, { user: await presentUser(env, user) });
 }
 
 async function logout(request, env) {

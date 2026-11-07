@@ -10,7 +10,7 @@ Public business site for `https://quasihydra.lalaayenglobalplaza.com` (GitHub Pa
 
 Lala Ayen Global Plaza is not part of this repo. Do not point this Worker at Plaza or edit Plaza’s allowlist.
 
-**Billing is off.** Basic, Pro, and Business render as **not activated**. There is no checkout, charge, or subscription endpoint. `/billing/*` on the Worker returns 503.
+**Billing is off.** `BILLING_MODE` in `worker/wrangler.jsonc` stays `off`, so Basic, Pro, and Business render as **not for sale**. `/billing/*` returns 503 and does not charge a card. Square and PayPal subscription code is in `worker/` and runs only when that mode is `sandbox` or `live`. Do not change the mode, deploy, or apply `worker/migrations/0002_billing.sql` remotely until that is approved. Prices stay $19, $49, and $149 per month.
 
 Cloud save calls the live Worker. Favorites stay in `localStorage` when the browser is offline.
 
@@ -18,7 +18,7 @@ Cloud save calls the live Worker. Favorites stay in `localStorage` when the brow
 
 `config.js` sets `window.QUASI_API` to `https://quasi-business-auth.zapbo777.workers.dev`.
 
-D1 database `quasi-business-auth` id `218f3cc3-589a-4744-b744-913350cc56e3` is already created and migrated. Do not add `limits.cpu_ms` to `worker/wrangler.jsonc`. A deploy with that field failed on the Free plan; the live Worker does not include it.
+D1 database `quasi-business-auth` id `218f3cc3-589a-4744-b744-913350cc56e3` already has `0001_init.sql` applied. Do not apply `worker/migrations/0002_billing.sql` remotely. Do not add `limits.cpu_ms` to `worker/wrangler.jsonc`. A deploy with that field failed on the Free plan; the live Worker does not include it.
 
 To redeploy code only:
 
