@@ -22,6 +22,8 @@
   // Do not set limits.cpu_ms. This Worker is on the Free plan; deploy failed
   // when cpu_ms was present. The live Worker does not use that field.
   "vars": {
+    // Stay "off" until Lala approves sandbox or live. Only "sandbox" and "live" turn billing on.
+    // Square and PayPal credentials are Cloudflare Secrets. Do not put secret values in this file.
     "BILLING_MODE": "off",
     "ALLOWED_ORIGINS": "https://quasihydra.lalaayenglobalplaza.com,https://www.quasihydra.lalaayenglobalplaza.com"
   },
