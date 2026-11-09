@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Separate from any Lala Ayen Global Plaza Worker. Do not add Plaza routes or origins.
+  // Separate from the Lala Ayen Global Plaza Worker. Plaza origins are allowed only because QUASI is served at lalaayenglobalplaza.com/quasi/ (owner-approved Nov 9, 2026). No Plaza routes.
   "name": "quasi-business-auth",
   "main": "src/index.js",
   "compatibility_date": "2026-11-06",
@@ -23,7 +23,7 @@
   // when cpu_ms was present. The live Worker does not use that field.
   "vars": {
     "BILLING_MODE": "off",
-    "ALLOWED_ORIGINS": "https://quasihydra.lalaayenglobalplaza.com,https://www.quasihydra.lalaayenglobalplaza.com"
+    "ALLOWED_ORIGINS": "https://quasihydra.lalaayenglobalplaza.com,https://www.quasihydra.lalaayenglobalplaza.com,https://lalaayenglobalplaza.com,https://www.lalaayenglobalplaza.com"
   },
   "d1_databases": [
     {
