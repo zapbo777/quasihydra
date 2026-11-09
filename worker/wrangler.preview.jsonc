@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // PREVIEW ONLY for the Quotation Maker. Separate Worker name and separate D1.
+  // Never points at the production quasi-business-auth Worker or its database.
+  "name": "quasi-business-auth-preview",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "vars": {
+    "BILLING_MODE": "off",
+    "ALLOWED_ORIGINS": "https://quasi-preview.pages.dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quasi-quote-preview",
+      "database_id": "edbe9ec3-91f6-4d9e-8389-198d40ff1c93",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

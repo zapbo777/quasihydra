@@ -63,11 +63,15 @@ async function route(request, env, path) {
       service: "quasi-business-auth",
       billing: "off",
       auth: ["signup", "login", "logout", "me"],
-      storage: ["library", "projects"],
+      storage: ["library", "projects", "quotes"],
     });
   }
 
   if (!env || !env.DB) fail(500, "Database is not configured.");
+
+  // Public quote view by unguessable share token. Returns only that one quote.
+  const shareMatch = path.match(/^\/q\/([A-Za-z0-9_-]{40,64})$/);
+  if (shareMatch && request.method === "GET") return getSharedQuote(env, shareMatch[1]);
 
   if (request.method === "POST" && path === "/auth/signup") return signup(request, env);
   if (request.method === "POST" && path === "/auth/login") return login(request, env);
@@ -77,6 +81,13 @@ async function route(request, env, path) {
   if (request.method === "PUT" && path === "/library") return putLibrary(request, env);
   if (request.method === "GET" && path === "/projects") return listProjects(request, env);
   if (request.method === "POST" && path === "/projects") return createProject(request, env);
+
+  if (request.method === "GET" && path === "/quote/profile") return getQuoteProfile(request, env);
+  if (request.method === "PUT" && path === "/quote/profile") return putQuoteProfile(request, env);
+  if (request.method === "GET" && path === "/quotes") return listQuotes(request, env);
+  if (request.method === "POST" && path === "/quotes") return createQuote(request, env);
+  const quoteMatch = path.match(/^\/quotes\/([0-9a-f-]{36})$/i);
+  if (quoteMatch && request.method === "DELETE") return deleteQuote(request, env, quoteMatch[1]);
 
   const projectMatch = path.match(/^\/projects\/([0-9a-f-]{36})$/i);
   if (projectMatch) {
@@ -537,6 +548,144 @@ async function deleteProject(request, env, id) {
   await ownedProject(env, user.id, id);
   await env.DB.prepare("DELETE FROM projects WHERE id = ? AND user_id = ?").bind(id, user.id).run();
   return jsonBody(200, { ok: true });
+}
+
+// ---- Quotation Maker (cleaners) ----
+const MAX_QUOTES = 500;
+const MAX_PRICE_CENTS = 10_000_000; // $100,000 cap per entry
+const CLEAN_TYPES = { standard: "Standard clean", deep: "Deep clean", moveout: "Move-out clean" };
+const HOME_SIZES = {
+  studio: { label: "Studio / 1 bedroom", extra: 0 },
+  bed2: { label: "2 bedrooms", extra: 1 },
+  bed3: { label: "3 bedrooms", extra: 2 },
+  bed4: { label: "4 bedrooms", extra: 3 },
+  bed5: { label: "5+ bedrooms", extra: 4 },
+};
+
+function cleanText(value, max, label) {
+  const text = String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim();
+  if (!text) fail(400, `${label} is required.`);
+  if (text.length > max) fail(400, `${label} is too long.`);
+  return text;
+}
+
+function priceCents(value, label) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) fail(400, `Enter a price of 0 or more for ${label}.`);
+  const cents = Math.round(amount * 100);
+  if (cents > MAX_PRICE_CENTS) fail(400, `Price for ${label} is too high.`);
+  return cents;
+}
+
+function sanitizePrices(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail(400, "Prices are required.");
+  const base = input.base && typeof input.base === "object" ? input.base : {};
+  return {
+    base: {
+      standard: priceCents(base.standard, CLEAN_TYPES.standard),
+      deep: priceCents(base.deep, CLEAN_TYPES.deep),
+      moveout: priceCents(base.moveout, CLEAN_TYPES.moveout),
+    },
+    perBedroom: priceCents(input.perBedroom, "each extra bedroom"),
+  };
+}
+
+function profilePayload(row) {
+  if (!row) return null;
+  let prices = null;
+  try { prices = JSON.parse(row.prices_json); } catch { prices = null; }
+  return { businessName: row.business_name, prices, updatedAt: row.updated_at };
+}
+
+function computeQuoteCents(prices, cleanType, homeSize) {
+  const base = Number(prices && prices.base && prices.base[cleanType]) || 0;
+  const per = Number(prices && prices.perBedroom) || 0;
+  return base + per * HOME_SIZES[homeSize].extra;
+}
+
+function quotePayload(row, includeToken) {
+  const out = {
+    businessName: row.business_name,
+    customerName: row.customer_name,
+    cleanType: row.clean_type,
+    cleanTypeLabel: CLEAN_TYPES[row.clean_type] || row.clean_type,
+    homeSize: row.home_size,
+    homeSizeLabel: (HOME_SIZES[row.home_size] || {}).label || row.home_size,
+    totalCents: row.total_cents,
+    createdAt: row.created_at,
+  };
+  if (includeToken) {
+    out.id = row.id;
+    out.shareToken = row.share_token;
+  }
+  return out;
+}
+
+async function getQuoteProfile(request, env) {
+  const { user } = await currentUser(request, env);
+  const row = await env.DB.prepare("SELECT * FROM cleaner_profiles WHERE user_id = ?").bind(user.id).first();
+  return jsonBody(200, { profile: profilePayload(row), cleanTypes: CLEAN_TYPES, homeSizes: Object.fromEntries(Object.entries(HOME_SIZES).map(([k, v]) => [k, v.label])) });
+}
+
+async function putQuoteProfile(request, env) {
+  const { user } = await currentUser(request, env);
+  const body = await readJson(request);
+  const businessName = cleanText(body.businessName, 120, "Business name");
+  const prices = sanitizePrices(body.prices);
+  const stamp = nowIso();
+  await env.DB.prepare("INSERT INTO cleaner_profiles (user_id, business_name, prices_json, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET business_name = excluded.business_name, prices_json = excluded.prices_json, updated_at = excluded.updated_at").bind(user.id, businessName, JSON.stringify(prices), stamp).run();
+  const row = await env.DB.prepare("SELECT * FROM cleaner_profiles WHERE user_id = ?").bind(user.id).first();
+  return jsonBody(200, { profile: profilePayload(row) });
+}
+
+async function listQuotes(request, env) {
+  const { user } = await currentUser(request, env);
+  const rows = await env.DB.prepare("SELECT * FROM quotes WHERE user_id = ? ORDER BY created_at DESC LIMIT ?").bind(user.id, MAX_QUOTES).all();
+  return jsonBody(200, { quotes: (rows.results || []).map((row) => quotePayload(row, true)) });
+}
+
+async function createQuote(request, env) {
+  const { user } = await currentUser(request, env);
+  const profile = await env.DB.prepare("SELECT * FROM cleaner_profiles WHERE user_id = ?").bind(user.id).first();
+  if (!profile) fail(409, "Set your business name and prices first.");
+  const countRow = await env.DB.prepare("SELECT COUNT(*) AS n FROM quotes WHERE user_id = ?").bind(user.id).first();
+  if ((Number(countRow && countRow.n) || 0) >= MAX_QUOTES) fail(409, "Quote limit reached. Delete old quotes first.");
+  const body = await readJson(request);
+  const customerName = cleanText(body.customerName, 80, "Customer name");
+  const cleanType = String(body.cleanType || "");
+  const homeSize = String(body.homeSize || "");
+  if (!Object.hasOwn(CLEAN_TYPES, cleanType)) fail(400, "Choose standard, deep or move-out.");
+  if (!Object.hasOwn(HOME_SIZES, homeSize)) fail(400, "Choose a home size.");
+  let prices;
+  try { prices = JSON.parse(profile.prices_json); } catch { fail(409, "Set your prices first."); }
+  const total = computeQuoteCents(prices, cleanType, homeSize);
+  const row = {
+    id: crypto.randomUUID(),
+    user_id: user.id,
+    share_token: randomToken(),
+    business_name: profile.business_name,
+    customer_name: customerName,
+    clean_type: cleanType,
+    home_size: homeSize,
+    total_cents: total,
+    created_at: nowIso(),
+  };
+  await env.DB.prepare("INSERT INTO quotes (id, user_id, share_token, business_name, customer_name, clean_type, home_size, total_cents, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(row.id, row.user_id, row.share_token, row.business_name, row.customer_name, row.clean_type, row.home_size, row.total_cents, row.created_at).run();
+  return jsonBody(201, { quote: quotePayload(row, true) });
+}
+
+async function deleteQuote(request, env, id) {
+  const { user } = await currentUser(request, env);
+  const row = await env.DB.prepare("SELECT id FROM quotes WHERE id = ? AND user_id = ?").bind(id, user.id).first();
+  if (!row) fail(404, "Quote not found.");
+  await env.DB.prepare("DELETE FROM quotes WHERE id = ? AND user_id = ?").bind(id, user.id).run();
+  return jsonBody(200, { ok: true });
+}
+
+async function getSharedQuote(env, token) {
+  const row = await env.DB.prepare("SELECT * FROM quotes WHERE share_token = ?").bind(token).first();
+  if (!row) fail(404, "Quote not found.");
+  return jsonBody(200, { quote: quotePayload(row, false) });
 }
 
 function allowedOrigins(env) {

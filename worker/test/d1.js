@@ -5,6 +5,7 @@ export function createTestDb() {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
   db.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0002_quotes.sql", import.meta.url), "utf8"));
   return wrap(db);
 }
 

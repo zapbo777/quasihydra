@@ -9,6 +9,7 @@ import { wrap } from "./test/d1.js";
 const db = new DatabaseSync(new URL("./local.sqlite", import.meta.url).pathname);
 db.exec("PRAGMA foreign_keys = ON");
 db.exec(readFileSync(new URL("./migrations/0001_init.sql", import.meta.url), "utf8"));
+db.exec(readFileSync(new URL("./migrations/0002_quotes.sql", import.meta.url), "utf8"));
 
 const env = {
   DB: wrap(db),
